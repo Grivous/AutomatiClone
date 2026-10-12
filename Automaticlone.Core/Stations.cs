@@ -178,6 +178,93 @@ public sealed class Furnace : Station
     }
 }
 
+/// <summary>
+/// Un chantier : il reçoit ses matériaux un par un, puis devient le bâtiment (même identifiant).
+/// Ses matériaux persistent d'une boucle à l'autre (§4).
+/// </summary>
+public sealed class BuildSite : Station
+{
+    internal BuildSite(int id, BuildingKind kind, Vector3 position, Rules rules) : base(id, position)
+    {
+        Kind = kind;
+        (Material, Needed) = kind switch
+        {
+            BuildingKind.Four => (Item.Pierre, rules.FurnaceStoneCost),
+            BuildingKind.Etabli => (Item.Lingot, rules.WorkbenchIngotCost),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        };
+    }
+
+    public BuildingKind Kind { get; }
+    public Item Material { get; }
+    public int Needed { get; }
+    public int Delivered { get; private set; }
+    public bool IsComplete => Delivered >= Needed;
+
+    internal override ActionResult Give(Actor actor, Rules rules)
+    {
+        if (actor.Carried != Material) return ActionResult.WrongItem;
+        actor.Carried = null;
+        Delivered++;
+        return ActionResult.Ok;
+    }
+
+    // ResetForNewLoop : rien à faire, les matériaux apportés restent acquis.
+}
+
+/// <summary>L'établi : 2 lingots donnent 1 engrenage. Il ne travaille pas seul : seuls les personnages apportent des ticks.</summary>
+public sealed class Workbench : Station
+{
+    internal Workbench(int id, Vector3 position) : base(id, position) { }
+
+    public int Ingots { get; private set; }
+    public int Gears { get; private set; }
+    public int ProgressSteps { get; private set; }
+
+    internal override bool CanWork => true;
+
+    internal override ActionResult Take(Actor actor, Rules rules)
+    {
+        if (Gears == 0) return ActionResult.NothingToTake;
+        Gears--;
+        actor.Carried = Item.Engrenage;
+        return ActionResult.Ok;
+    }
+
+    internal override ActionResult Give(Actor actor, Rules rules)
+    {
+        if (actor.Carried != Item.Lingot) return ActionResult.WrongItem;
+        if (Ingots >= rules.WorkbenchInputCapacity) return ActionResult.StationFull;
+        actor.Carried = null;
+        Ingots++;
+        return ActionResult.Ok;
+    }
+
+    internal override void Advance(IReadOnlyList<Actor> workers, Rules rules)
+    {
+        if (workers.Count == 0) return;
+        if (Ingots < rules.GearIngots || Gears >= rules.WorkbenchOutputCapacity)
+        {
+            MarkWaiting(workers);
+            return;
+        }
+
+        ProgressSteps += workers.Count;
+        int cost = rules.StepsFor(rules.GearTicks);
+        if (ProgressSteps >= cost)
+        {
+            ProgressSteps -= cost;
+            Ingots -= rules.GearIngots;
+            Gears++;
+        }
+    }
+
+    internal override void ResetForNewLoop()
+    {
+        Ingots = Gears = ProgressSteps = 0;
+    }
+}
+
 /// <summary>Le point de livraison : compte les engrenages livrés pendant la boucle.</summary>
 public sealed class DeliveryPoint : Station
 {

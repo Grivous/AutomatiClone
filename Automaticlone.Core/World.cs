@@ -30,6 +30,9 @@ public sealed class World
     public Furnace AddFurnace(Vector3 position) =>
         Add(new Furnace(_nextId++, position));
 
+    public Workbench AddWorkbench(Vector3 position) =>
+        Add(new Workbench(_nextId++, position));
+
     public Station? Find(int id) => _stations.Find(s => s.Id == id);
 
     /// <summary>Applique une commande d'un personnage. Un échec ne change jamais l'objet porté.</summary>
@@ -52,7 +55,18 @@ public sealed class World
             {
                 if (Find(id) is not { } station) return ActionResult.UnknownStation;
                 if (actor.Carried == null) return ActionResult.HandsEmpty;
-                return station.Give(actor, Rules);
+                var result = station.Give(actor, Rules);
+                if (station is BuildSite { IsComplete: true } site) CompleteSite(site);
+                return result;
+            }
+
+            case PlaceBuilding(var kind, var position):
+            {
+                // Trop près d'une station (y compris un bâtiment déjà là) : échec (§3.4).
+                if (_stations.Any(s => HorizontalDistance(s.Position, position) < Rules.MinBuildSpacing))
+                    return ActionResult.PlacementBlocked;
+                Add(new BuildSite(_nextId++, kind, position, Rules));
+                return ActionResult.Ok;
             }
 
             case StartWork(var id):
@@ -85,6 +99,21 @@ public sealed class World
     {
         foreach (var s in _stations) s.ResetForNewLoop();
     }
+
+    /// <summary>Le chantier terminé est remplacé, à la même place dans la liste, par son bâtiment (même identifiant).</summary>
+    private void CompleteSite(BuildSite site)
+    {
+        Station building = site.Kind switch
+        {
+            BuildingKind.Four => new Furnace(site.Id, site.Position),
+            BuildingKind.Etabli => new Workbench(site.Id, site.Position),
+            _ => throw new ArgumentOutOfRangeException(nameof(site)),
+        };
+        _stations[_stations.IndexOf(site)] = building;
+    }
+
+    private static float HorizontalDistance(Vector3 a, Vector3 b) =>
+        new Vector2(a.X - b.X, a.Z - b.Z).Length();
 
     private T Add<T>(T station) where T : Station
     {
