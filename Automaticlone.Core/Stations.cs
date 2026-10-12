@@ -97,6 +97,87 @@ public sealed class ResourceDeposit : Station
     }
 }
 
+/// <summary>
+/// Le four (§9) : on y met du fer et du charbon. Allumé, il fond tout seul à 1 tick par seconde,
+/// et chaque personnage qui y travaille ajoute 1 tick par seconde. Une fois allumé, il brûle son
+/// charbon jusqu'au bout, même à vide.
+/// </summary>
+public sealed class Furnace : Station
+{
+    internal Furnace(int id, Vector3 position) : base(id, position) { }
+
+    public int Iron { get; private set; }
+    public int Coal { get; private set; }
+    public int Ingots { get; private set; }
+    public int BurnStepsLeft { get; private set; }
+    public int ProgressSteps { get; private set; }
+    public bool IsLit => BurnStepsLeft > 0;
+
+    internal override bool CanWork => true;
+
+    internal override ActionResult Take(Actor actor, Rules rules)
+    {
+        if (Ingots == 0) return ActionResult.NothingToTake;
+        Ingots--;
+        actor.Carried = Item.Lingot;
+        return ActionResult.Ok;
+    }
+
+    internal override ActionResult Give(Actor actor, Rules rules)
+    {
+        switch (actor.Carried)
+        {
+            case Item.Fer when Iron >= rules.FurnaceInputCapacity:
+            case Item.Charbon when Coal >= rules.FurnaceInputCapacity:
+                return ActionResult.StationFull;
+            case Item.Fer:
+                Iron++;
+                break;
+            case Item.Charbon:
+                Coal++;
+                break;
+            default:
+                return ActionResult.WrongItem;
+        }
+        actor.Carried = null;
+        return ActionResult.Ok;
+    }
+
+    internal override void Advance(IReadOnlyList<Actor> workers, Rules rules)
+    {
+        // Allumage automatique dès qu'il y a du charbon.
+        if (BurnStepsLeft == 0 && Coal > 0)
+        {
+            Coal--;
+            BurnStepsLeft = rules.CoalBurnSeconds * rules.StepsPerSecond;
+        }
+
+        bool litThisStep = IsLit;
+        if (litThisStep) BurnStepsLeft--; // brûle même à vide
+
+        bool canSmelt = litThisStep && Iron > 0 && Ingots < rules.FurnaceOutputCapacity;
+        if (!canSmelt)
+        {
+            MarkWaiting(workers);
+            return;
+        }
+
+        ProgressSteps += 1 + workers.Count;
+        int cost = rules.StepsFor(rules.SmeltTicks);
+        if (ProgressSteps >= cost)
+        {
+            ProgressSteps -= cost;
+            Iron--;
+            Ingots++;
+        }
+    }
+
+    internal override void ResetForNewLoop()
+    {
+        Iron = Coal = Ingots = BurnStepsLeft = ProgressSteps = 0;
+    }
+}
+
 /// <summary>Le point de livraison : compte les engrenages livrés pendant la boucle.</summary>
 public sealed class DeliveryPoint : Station
 {

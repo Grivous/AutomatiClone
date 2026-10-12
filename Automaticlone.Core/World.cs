@@ -27,6 +27,9 @@ public sealed class World
     public DeliveryPoint AddDeliveryPoint(Vector3 position) =>
         Add(new DeliveryPoint(_nextId++, position));
 
+    public Furnace AddFurnace(Vector3 position) =>
+        Add(new Furnace(_nextId++, position));
+
     public Station? Find(int id) => _stations.Find(s => s.Id == id);
 
     /// <summary>Applique une commande d'un personnage. Un échec ne change jamais l'objet porté.</summary>
