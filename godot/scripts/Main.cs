@@ -20,6 +20,7 @@ namespace Automaticlone.Game;
 //    clic gauche              sur une station : déposer l'objet porté, ou ramasser si mains vides
 //    clic droit (maintenu)    travailler sur la station visée (miner, aider au four, fabriquer)
 //    1 / 2                    poser un chantier de four / d'établi à l'endroit visé au sol
+//    Suppr                    supprimer le clone visé
 //    Échap                    libérer la souris (un clic la recapture)
 // =====================================================================================
 
@@ -31,6 +32,7 @@ public partial class Main : Node3D
     private Player _player = null!;
     private Hud _hud = null!;
     private readonly Dictionary<int, StationView> _stationViews = new();
+    private readonly Dictionary<int, CloneView> _cloneViews = new();
     private readonly List<Command> _pending = new();
     private int? _workingOn;
 
@@ -75,6 +77,7 @@ public partial class Main : Node3D
         }
 
         SyncStations();
+        SyncClones();
         _hud.UpdateStatus(_game, AimHint());
     }
 
@@ -105,6 +108,16 @@ public partial class Main : Node3D
 
         if (Input.IsActionJustPressed("poser_four")) TryPlace(BuildingKind.Four);
         if (Input.IsActionJustPressed("poser_etabli")) TryPlace(BuildingKind.Etabli);
+        if (Input.IsActionJustPressed("supprimer_clone")) TryDeleteAimedClone();
+    }
+
+    /// <summary>Suppr en visant un clone : il disparaît (prototype : possible à tout moment, §9).</summary>
+    private void TryDeleteAimedClone()
+    {
+        var hit = Raycast(PlaceRange, CloneView.AimLayer, areas: true);
+        if (hit == null || !hit.Value.collider.HasMeta(CloneView.LifeMeta)) return;
+        int life = hit.Value.collider.GetMeta(CloneView.LifeMeta).AsInt32();
+        if (_game.DeleteClone(life)) _hud.ShowMessage($"Clone de la vie {life} supprimé");
     }
 
     private void StopWorking()
@@ -189,6 +202,29 @@ public partial class Main : Node3D
         {
             _stationViews[id].QueueFree();
             _stationViews.Remove(id);
+        }
+    }
+
+    private void SyncClones()
+    {
+        var alive = new HashSet<int>();
+        foreach (var clone in _game.Clones)
+        {
+            int life = clone.Recording.LifeNumber;
+            alive.Add(life);
+            if (!_cloneViews.TryGetValue(life, out var view))
+            {
+                view = CloneView.Create(life);
+                AddChild(view);
+                _cloneViews[life] = view;
+            }
+            view.Sync(clone, _game.Step, _game.Rules);
+        }
+
+        foreach (var life in _cloneViews.Keys.Where(l => !alive.Contains(l)).ToList())
+        {
+            _cloneViews[life].QueueFree();
+            _cloneViews.Remove(life);
         }
     }
 
