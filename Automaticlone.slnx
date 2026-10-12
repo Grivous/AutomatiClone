@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Automaticlone.Core.Tests/Automaticlone.Core.Tests.csproj" />
+  <Project Path="Automaticlone.Core/Automaticlone.Core.csproj" />
+</Solution>
