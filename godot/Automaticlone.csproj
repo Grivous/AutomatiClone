@@ -1,0 +1,13 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <!-- Projet C# du jeu Godot : uniquement l'affichage et les commandes du joueur.
+       Toute la logique est dans Automaticlone.Core (testable sans Godot). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>Automaticlone.Game</RootNamespace>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Automaticlone.Core\Automaticlone.Core.csproj" />
+  </ItemGroup>
+</Project>
