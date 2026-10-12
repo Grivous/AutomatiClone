@@ -35,11 +35,21 @@ public partial class Main : Node3D
     private readonly Dictionary<int, CloneView> _cloneViews = new();
     private readonly List<Command> _pending = new();
     private int? _workingOn;
+    private LifeEndPanel _lifeEnd = null!;
+    private bool _goalAnnounced;
+
+    /// <summary>
+    /// Option de lancement « -- --test-boucle » : vies de 2 s gardées automatiquement.
+    /// Sert seulement à vérifier rapidement l'affichage des clones et la fin de vie.
+    /// </summary>
+    private bool _testLoop;
 
     public override void _Ready()
     {
         SetupInput();
-        _game = new GameState(new Rules(), PrototypeMap.Build);
+        _testLoop = OS.GetCmdlineUserArgs().Contains("--test-boucle");
+        var rules = _testLoop ? new Rules(LifeSeconds: 2) : new Rules();
+        _game = new GameState(rules, PrototypeMap.Build);
 
         BuildScenery();
         _player = new Player();
@@ -49,11 +59,17 @@ public partial class Main : Node3D
 
         _hud = new Hud();
         AddChild(_hud);
+
+        _lifeEnd = new LifeEndPanel();
+        AddChild(_lifeEnd);
+        _lifeEnd.Decided += OnLifeDecided;
+
         Input.MouseMode = Input.MouseModeEnum.Captured;
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (_lifeEnd.Visible) return;
         if (e.IsActionPressed("liberer_souris"))
             Input.MouseMode = Input.MouseModeEnum.Visible;
         else if (e is InputEventMouseButton { Pressed: true } && Input.MouseMode != Input.MouseModeEnum.Captured)
@@ -74,11 +90,47 @@ public partial class Main : Node3D
             for (int i = 0; i < results.Count; i++)
                 if (results[i] != ActionResult.Ok) OnPlayerCommandFailed(_pending[i], results[i]);
             _pending.Clear();
+
+            if (_game.GoalReached && !_goalAnnounced)
+            {
+                _goalAnnounced = true;
+                _hud.ShowMessage($"Objectif atteint : {_game.Rules.GoalGears} engrenages livrés !", 5);
+            }
+        }
+        else if (!_lifeEnd.Visible)
+        {
+            OnLifeOver();
         }
 
         SyncStations();
         SyncClones();
         _hud.UpdateStatus(_game, AimHint());
+    }
+
+    // ---------------------------------------------------------------------------------
+    //  Fin de vie
+    // ---------------------------------------------------------------------------------
+
+    private void OnLifeOver()
+    {
+        _workingOn = null;
+        if (_testLoop)
+        {
+            GD.Print($"[test-boucle] vie {_game.LifeNumber} terminée, gardée ; clones affichés : {_cloneViews.Count}");
+            OnLifeDecided(true);
+            return;
+        }
+        Input.MouseMode = Input.MouseModeEnum.Visible;
+        _lifeEnd.Show(_game);
+    }
+
+    private void OnLifeDecided(bool keep)
+    {
+        _game.FinishLife(keep);
+        _goalAnnounced = false;
+        _player.Respawn(PrototypeMap.Spawn.ToGodot());
+        Input.MouseMode = Input.MouseModeEnum.Captured;
+        _hud.ShowMessage(keep ? "Vie gardée : un nouveau clone la rejoue" : "Vie rejetée");
     }
 
     // ---------------------------------------------------------------------------------
