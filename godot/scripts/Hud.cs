@@ -22,6 +22,21 @@ public partial class Hud : CanvasLayer
     {
         _status = AddLabel(new Vector2(16, 12), 22);
 
+        var help = AddLabel(Vector2.Zero, 16);
+        help.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopRight);
+        help.GrowHorizontal = Control.GrowDirection.Begin;
+        help.HorizontalAlignment = HorizontalAlignment.Right;
+        help.OffsetRight = -16;
+        help.OffsetTop = 12;
+        help.Modulate = new Color(1, 1, 1, 0.8f);
+        help.Text =
+            "ZQSD se déplacer · souris regarder\n" +
+            "clic gauche ramasser / déposer\n" +
+            "clic droit maintenu travailler\n" +
+            "1 chantier de four · 2 chantier d'établi\n" +
+            "Suppr supprimer le clone visé\n" +
+            "Échap libérer la souris";
+
         var crosshair = AddLabel(Vector2.Zero, 28);
         crosshair.Text = "+";
         crosshair.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);

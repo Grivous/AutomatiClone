@@ -75,11 +75,21 @@ public class MiningTests
         Assert.Equal(ActionResult.HandsEmpty, world.Apply(a, new Deposit(iron.Id)));
         Assert.Equal(ActionResult.UnknownStation, world.Apply(a, new PickUp(999)));
 
-        a.Carried = Item.Pierre;
+        a.Carried = Item.Pierre;                     // pas la ressource de ce gisement
         Assert.Equal(ActionResult.WrongItem, world.Apply(a, new Deposit(iron.Id)));
         Assert.Equal(Item.Pierre, a.Carried);
         Assert.Equal(ActionResult.CannotWorkHere, world.Apply(a, new StartWork(delivery.Id)));
         Assert.Null(a.WorkStationId);
+    }
+
+    [Fact]
+    public void PuttingBackOnFullPileFails()
+    {
+        var (world, iron, _) = IronWorld(SmallPile);
+        iron.Pile = 3;
+        var a = new Actor(1) { Carried = Item.Fer };
+        Assert.Equal(ActionResult.StationFull, world.Apply(a, new Deposit(iron.Id)));
+        Assert.Equal(Item.Fer, a.Carried);
     }
 
     [Fact]

@@ -17,5 +17,6 @@ public static class PrototypeMap
         world.AddDeposit(Item.Pierre, new Vector3(0, 0, -22));
         world.AddDeposit(Item.Charbon, new Vector3(8, 0, -20));
         world.AddDeliveryPoint(new Vector3(0, 0, -3));
+        world.ReserveArea(Spawn);
     }
 }

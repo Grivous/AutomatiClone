@@ -63,9 +63,11 @@ public sealed class Game
         var results = new List<ActionResult>(playerCommands.Count);
         foreach (var command in playerCommands)
         {
+            // Un apport à un chantier est enregistré comme tel : rejoué sur le bâtiment terminé, il échouera (§3.4).
+            var recorded = command is Deposit d && World.Find(d.StationId) is BuildSite ? d with { IntoSite = true } : command;
             var result = World.Apply(Player, command);
             results.Add(result);
-            if (result == ActionResult.Ok) _commands.Add(new TimedCommand(Step, command));
+            if (result == ActionResult.Ok) _commands.Add(new TimedCommand(Step, recorded));
         }
         _poses.Add(_playerPose);
 

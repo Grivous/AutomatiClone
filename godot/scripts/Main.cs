@@ -28,6 +28,9 @@ public partial class Main : Node3D
 {
     private const float PlaceRange = 30f;
 
+    /// <summary>On ne construit pas sur soi-même (on resterait coincé dans le bâtiment).</summary>
+    private const float MinDistanceFromPlayer = 1.5f;
+
     private GameState _game = null!;
     private Player _player = null!;
     private Hud _hud = null!;
@@ -37,6 +40,9 @@ public partial class Main : Node3D
     private int? _workingOn;
     private LifeEndPanel _lifeEnd = null!;
     private bool _goalAnnounced;
+
+    /// <summary>Jusqu'à cette frame physique (incluse), les clics n'agissent pas : ils viennent de recapturer la souris.</summary>
+    private ulong _ignoreClickFrame;
 
     /// <summary>
     /// Option de lancement « -- --test-boucle » : vies de 2 s gardées automatiquement.
@@ -75,7 +81,8 @@ public partial class Main : Node3D
         else if (e is InputEventMouseButton { Pressed: true } && Input.MouseMode != Input.MouseModeEnum.Captured)
         {
             Input.MouseMode = Input.MouseModeEnum.Captured;
-            GetViewport().SetInputAsHandled(); // ce clic sert seulement à recapturer la souris
+            GetViewport().SetInputAsHandled(); // ce clic sert seulement à recapturer la souris…
+            _ignoreClickFrame = Engine.GetPhysicsFrames() + 1; // …et ne doit pas aussi agir
         }
     }
 
@@ -146,11 +153,12 @@ public partial class Main : Node3D
         }
 
         var aimed = AimedStation();
+        bool clicksAllowed = Engine.GetPhysicsFrames() > _ignoreClickFrame;
 
-        if (Input.IsActionJustPressed("agir") && aimed is { } target)
+        if (clicksAllowed && Input.IsActionJustPressed("agir") && aimed is { } target)
             _pending.Add(_game.Player.Carried != null ? new Deposit(target.Id) : new PickUp(target.Id));
 
-        if (Input.IsActionJustPressed("travailler") && aimed is { } workTarget)
+        if (clicksAllowed && Input.IsActionJustPressed("travailler") && aimed is { } workTarget)
         {
             _pending.Add(new StartWork(workTarget.Id));
             _workingOn = workTarget.Id;
@@ -188,6 +196,12 @@ public partial class Main : Node3D
             return;
         }
         var p = hit.Value.position;
+        var feet = _player.GlobalPosition;
+        if (new Vector2(p.X - feet.X, p.Z - feet.Z).Length() < MinDistanceFromPlayer)
+        {
+            _hud.ShowMessage("Trop près de vous");
+            return;
+        }
         _pending.Add(new PlaceBuilding(kind, new System.Numerics.Vector3(p.X, 0, p.Z)));
     }
 
@@ -223,7 +237,8 @@ public partial class Main : Node3D
     {
         if (AimedStation() is not { } station) return "";
         string verb = _game.Player.Carried != null ? "[Clic gauche] Déposer" : "[Clic gauche] Ramasser";
-        return $"{StationView.Describe(station, _game.Rules).Replace('\n', ' ')}\n{verb} · [Clic droit] Travailler";
+        string work = station.CanWork ? " · [Clic droit maintenu] Travailler" : "";
+        return $"{StationView.Describe(station, _game.Rules).Replace('\n', ' ')}\n{verb}{work}";
     }
 
     // ---------------------------------------------------------------------------------

@@ -13,6 +13,7 @@ namespace Automaticlone.Core;
 public sealed class World
 {
     private readonly List<Station> _stations = new();
+    private readonly List<Vector3> _reserved = new();
     private int _nextId = 1; // ne revient jamais en arrière : les identifiants restent stables
 
     public World(Rules rules) => Rules = rules;
@@ -33,6 +34,9 @@ public sealed class World
     public Workbench AddWorkbench(Vector3 position) =>
         Add(new Workbench(_nextId++, position));
 
+    /// <summary>Interdit de construire autour de ce point (ex. le point d'apparition, sinon on renaîtrait dans un bâtiment).</summary>
+    public void ReserveArea(Vector3 position) => _reserved.Add(position);
+
     public Station? Find(int id) => _stations.Find(s => s.Id == id);
 
     /// <summary>Applique une commande d'un personnage. Un échec ne change jamais l'objet porté.</summary>
@@ -51,10 +55,11 @@ public sealed class World
                 return station.Take(actor, Rules);
             }
 
-            case Deposit(var id):
+            case Deposit(var id, var intoSite):
             {
                 if (Find(id) is not { } station) return ActionResult.UnknownStation;
                 if (actor.Carried == null) return ActionResult.HandsEmpty;
+                if (intoSite && station is not BuildSite) return ActionResult.WrongItem; // chantier déjà terminé (§3.4)
                 var result = station.Give(actor, Rules);
                 if (station is BuildSite { IsComplete: true } site) CompleteSite(site);
                 return result;
@@ -63,7 +68,8 @@ public sealed class World
             case PlaceBuilding(var kind, var position):
             {
                 // Trop près d'une station (y compris un bâtiment déjà là) : échec (§3.4).
-                if (_stations.Any(s => HorizontalDistance(s.Position, position) < Rules.MinBuildSpacing))
+                if (_stations.Any(s => HorizontalDistance(s.Position, position) < Rules.MinBuildSpacing)
+                    || _reserved.Any(r => HorizontalDistance(r, position) < Rules.MinBuildSpacing))
                     return ActionResult.PlacementBlocked;
                 Add(new BuildSite(_nextId++, kind, position, Rules));
                 return ActionResult.Ok;

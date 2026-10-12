@@ -1,4 +1,4 @@
-# Automaticlone — Cahier des charges (version de travail)
+# AutomatiClone — Cahier des charges (version de travail)
 
 > Statut : les décisions de conception sont dans les sections 1 à 7, le plan de prototypage dans la section 9.
 > Les points ouverts de la section 8 ne bloquent pas le prototype A : ils seront tranchés en s'appuyant sur ce que les prototypes auront appris.
@@ -67,6 +67,7 @@ Deux formes de coopération coexistent :
 - Un point de minage produit **1 minerai** chaque fois qu'il a reçu les ticks requis. Le minerai **tombe au pied du point de minage** et la progression repart à zéro pour le minerai suivant.
 - **Ramasser** est une action séparée. Elle vise le tas de minerai d'un point de minage, et non un minerai précis : n'importe quel personnage peut ramasser n'importe quel minerai du tas.
 - Les minerais non ramassés **s'accumulent** au pied du point de minage, jusqu'à une **limite** (valeur d'équilibrage par point de minage).
+- **Reposer :** on peut reposer une ressource au pied de son propre gisement (dans la limite). C'est le seul moyen de se libérer les mains, puisqu'on ne porte qu'un objet à la fois.
 - **Blocage :** quand la limite est atteinte, les personnages qui minent ce point sont **en erreur** et n'apportent plus de ticks. Dès qu'un minerai est ramassé et qu'une place se libère, ils **sortent de l'erreur et reprennent le minage** (s'ils sont encore en train de miner dans leur rejeu).
 - C'est une **attente**, différente de l'échec de la règle 3.2, et elle a sa propre couleur, l'**orange** :
   - **orange vif** pendant tout le blocage ;

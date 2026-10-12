@@ -75,6 +75,15 @@ public class BuildingTests
     }
 
     [Fact]
+    public void PlacingOnTheSpawnPointIsBlocked()
+    {
+        var world = new World(new Rules());
+        PrototypeMap.Build(world);
+        Assert.Equal(ActionResult.PlacementBlocked,
+            world.Apply(new Actor(1), new PlaceBuilding(BuildingKind.Four, PrototypeMap.Spawn + new Vector3(1, 0, 1))));
+    }
+
+    [Fact]
     public void PlacingWhereABuildingAlreadyStandsFails()
     {
         var (world, _, _) = IronWorld();

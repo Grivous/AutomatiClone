@@ -189,6 +189,47 @@ public class GameTests
     }
 
     [Fact]
+    public void ReplayedDeliveryToFinishedWorkbenchSiteFailsAndKeepsIngot()
+    {
+        var t = new TestGame();
+        var g = t.Game;
+        int siteId = g.World.Stations.Max(s => s.Id) + 1;
+        Ok(g.World.Apply(new Actor(99), new PlaceBuilding(BuildingKind.Etabli, new Vector3(-8, 0, -10))));
+        var helper = new Actor(98) { Carried = Item.Lingot };
+        Ok(g.World.Apply(helper, new Deposit(siteId)));       // 1/2 lingots
+
+        g.Player.Carried = Item.Lingot;
+        PlayLife(g, null, (10, new Deposit(siteId)));          // le joueur termine l'établi
+        Assert.IsType<Workbench>(g.World.Find(siteId));
+        g.FinishLife(keep: true);
+
+        var clone = g.Clones[0].Actor;
+        clone.Carried = Item.Lingot;                           // comme s'il avait encore un lingot en main
+        PlayLife(g, 11);
+        Assert.True(clone.HasFailed);
+        Assert.Equal(Item.Lingot, clone.Carried);
+        Assert.Equal(0, ((Workbench)g.World.Find(siteId)!).Ingots);
+    }
+
+    [Fact]
+    public void ResourceCanBePutBackOnItsDepositAndReplays()
+    {
+        var t = new TestGame();
+        var g = t.Game;
+        t.Iron.Pile = 1;
+        var results = PlayLife(g, null, (10, new PickUp(t.Iron.Id)), (20, new Deposit(t.Iron.Id)));
+        Assert.Equal(ActionResult.Ok, results[20]);
+        Assert.Equal(1, t.Iron.Pile);
+        Assert.Null(g.Player.Carried);
+        g.FinishLife(keep: true);
+
+        t.Iron.Pile = 1;
+        PlayLife(g, null);
+        Assert.False(g.Clones[0].Actor.HasFailed);
+        Assert.Equal(1, t.Iron.Pile);
+    }
+
+    [Fact]
     public void NewLoopEmptiesFurnaceAndResetsActors()
     {
         var t = new TestGame();

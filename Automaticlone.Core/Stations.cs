@@ -30,7 +30,7 @@ public abstract class Station
     internal virtual ActionResult Give(Actor actor, Rules rules) => ActionResult.WrongItem;
 
     /// <summary>Peut-on travailler sur cette station ?</summary>
-    internal virtual bool CanWork => false;
+    public virtual bool CanWork => false;
 
     /// <summary>Un pas de travail. <paramref name="workers"/> : les personnages qui y travaillent.</summary>
     internal virtual void Advance(IReadOnlyList<Actor> workers, Rules rules) { }
@@ -62,13 +62,23 @@ public sealed class ResourceDeposit : Station
     /// <summary>Pas de travail accumulés vers la prochaine extraction.</summary>
     public int ProgressSteps { get; private set; }
 
-    internal override bool CanWork => true;
+    public override bool CanWork => true;
 
     internal override ActionResult Take(Actor actor, Rules rules)
     {
         if (Pile == 0) return ActionResult.NothingToTake;
         Pile--;
         actor.Carried = Resource;
+        return ActionResult.Ok;
+    }
+
+    /// <summary>Reposer sa ressource au pied du gisement : le seul moyen de se libérer les mains.</summary>
+    internal override ActionResult Give(Actor actor, Rules rules)
+    {
+        if (actor.Carried != Resource) return ActionResult.WrongItem;
+        if (Pile >= rules.PileLimit) return ActionResult.StationFull;
+        actor.Carried = null;
+        Pile++;
         return ActionResult.Ok;
     }
 
@@ -113,7 +123,7 @@ public sealed class Furnace : Station
     public int ProgressSteps { get; private set; }
     public bool IsLit => BurnStepsLeft > 0;
 
-    internal override bool CanWork => true;
+    public override bool CanWork => true;
 
     internal override ActionResult Take(Actor actor, Rules rules)
     {
@@ -221,7 +231,7 @@ public sealed class Workbench : Station
     public int Gears { get; private set; }
     public int ProgressSteps { get; private set; }
 
-    internal override bool CanWork => true;
+    public override bool CanWork => true;
 
     internal override ActionResult Take(Actor actor, Rules rules)
     {
